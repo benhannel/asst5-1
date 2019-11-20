@@ -18,7 +18,7 @@ Section 4 explains how to use Spark to launch Spark applications written in an I
 
 Section 5 details a simple word count application that also serves as a warmup exercise.
 
-Section 6 shows how to reimplement PageRank from Assignment 4 in Spark.
+Section 6 will take you through a re-implementation of the PageRank algorithm from Assignment 4 in Spark.
 
 ## 1) Setting up a stand-alone Spark Instance
 Download and install Spark 2.3.4 on your machine or Myth (you can use `wget`): `wget http://mirrors.sonic.net/apache/spark/spark-2.3.4/spark-2.3.4-bin-hadoop2.7.tgz`
@@ -107,7 +107,7 @@ For `pg100.txt`, the correct output is,
 [('', 197060), ('the', 23455), ('I', 22225), ('and', 18715), ('to', 16433), ('of', 15830), ('a', 12851), ('you', 12236), ('my', 10840), ('in', 10074)]
 ```
 
-# 6) Page Rank in Spark (70 Points)
+## 6) Page Rank in Spark (70 Points)
 In this problem, you will learn how to implement the PageRank algorithm in Spark. You can start experimenting with small randomly generated graphs (assume graph has no dead-ends), provided at `data/page_rank/small.txt` and `data/page_rank/full.txt`. There are 100 nodes (n = 100) in the small graph and 1000 nodes (n = 1000) in the full graph, and m = 8192 edges, 1000 of which form a directed cycle (through all the nodes) which ensures that the graph is connected. It is easy to see that the existence of such a cycle ensures that there are no dead ends in the graph. There may be multiple directed edges between a pair of nodes, and your solution should treat them as the same edge. The first column in `data/page_rank/full.txt` refers to the source node, and the second column refers to the destination node.
 
 Implementation hint: You may choose to store the PageRank vector r either in memory or as an RDD. Only the matrix of links is too large to store in memory.
@@ -147,7 +147,7 @@ For `small.txt`, the correct output is,
 
 We expect you to use Spark for all operations on the data (including performing the matrix-vector multiply). You can use NumPy or regular python for computing dot products and other arithmetic, but any other data computation should leverage Spark.
 
-# Hand-in Instructions
+## Hand-in Instructions
 Please submit your work using Gradescope.
 
 - Please submit your writeup as the file `writeup.pdf`.
