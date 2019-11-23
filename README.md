@@ -10,7 +10,7 @@ You are expected to debug your implementation on a single worker; however, later
 
 Section 1 explains how to download and install a stand-alone Spark instance.
 
-Section 2 explains how to launch a Spark cluster on Google Cloud. [TODO]
+Section 2 explains how to launch a Spark cluster on Google Cloud.
 
 Section 3 explains how to launch the Spark shell for interactively building Spark applications.
 
@@ -21,7 +21,7 @@ Section 5 details a simple word count application that also serves as a warmup e
 Section 6 will take you through a re-implementation of the PageRank algorithm from Assignment 4 in Spark.
 
 ## 1) Setting up a stand-alone Spark Instance
-Download and install Spark 2.3.4 on your machine or Myth (you can use `wget`): `wget http://mirrors.sonic.net/apache/spark/spark-2.3.4/spark-2.3.4-bin-hadoop2.7.tgz`
+Download and install Spark 2.3.4 on your machine or Myth (you can use `wget`): `wget http://mirrors.sonic.net/apache/spark/spark-2.3.4/spark-2.3.4-bin-hadoop2.7.tgz`.
 
 Unpack the compressed TAR ball: `tar -xvzf spark-2.3.4-bin-hadoop2.7.tgz`.
 
@@ -32,11 +32,62 @@ export SPARK_HOME="$HOME/spark-2.3.4-bin-hadoop2.7"
 export SPARK_LOCAL_IP="127.0.0.1"
 export PATH="$HOME/bin:$HOME/.local/bin:$SPARK_HOME/bin:$PATH"
 ```
+
 You will have to edit the `$SPARK_HOME` line if you unpacked the Spark 2.3.4 tarball in a location other than `$HOME`.
 
 After editing your `~/.bashrc`, run `source ~/.bashrc` so the new definitions take effect.
 
-For the rest of this README it's assumed that your environment variables are set. As a quick sanity check, running `which pyspark` should return the location of the `pyspark` binary if this is done correctly.
+The rest of this README assume that your environment variables are set. As a quick sanity check, running `which pyspark` should return the location of the `pyspark` binary if this is done correctly.
+
+## 2) Launching on a Distributed Cluster
+
+We will be using GCP's `dataproc` tool to spawn a cluster equipped with Spark.
+Unlike Assignment 3, where we ran into trouble spawning instances with GPUs, you
+should find here that spinning up your own cluster takes a matter of seconds,
+and should be able to crank out the computation you need fairly seamlessly.
+
+### Setting up a Cluster
+
+Use the following command (replacing `[cluster-name]` and `[project-name]`):
+```
+gcloud dataproc clusters create [cluster-name] --region us-central1 --subnet default --zone us-central1-c --master-machine-type n1-standard-4 --master-boot-disk-size 93 --num-workers 5 --worker-machine-type n1-standard-4 --worker-boot-disk-size 100 --image-version 1.3-deb9 --project [project-name]
+```
+
+Once that's done, you should have a cluster of 5 worker machines, and a master
+machine.  This cluster is located in the `us-central1` region, but you can feel
+free to launch it it whichever region makes sense for you.
+
+You can delete your cluster using:
+
+```
+gcloud dataproc clusters delete [cluster-name]
+```
+
+### Submitting a spark job to the cluster
+Submitting a Spark job is easy :) We don't even need to SSH into the master;
+we can just use gcloud's CLI!
+
+The command below will run the `page_rank.py` script (the Spark driver file) using
+the cluster specified by the cluster-name and cluster-region. Since the
+PageRank program takes in a CLI argument of filename, we specify that after the
+final `--`, this is where we list arguments to the Spark driver script. Since it is a
+file we need access to, we need to make the file available to it so we include
+the `--files` flag as well. 
+
+```
+gcloud dataproc jobs submit pyspark pageRank.py --cluster=[cluster-name] --region [cluster region] --files=[gs://<data-file>] -- [gs://<data-file>]
+```
+
+See https://cloud.google.com/sdk/gcloud/reference/dataproc/jobs/submit/pyspark
+for more details.
+
+You'll notice that there are `gs://` URIs, these correspond to URIs in GCP
+storage.  We will provide a set of buckets for you to run on shortly, but you can
+upload your own files to GCP storage using `gsutil cp` following cp semantics.
+Likewise, there's a `gsutil rm` to remove files.
+
+More details on `gsutils` are available in the docs:
+https://cloud.google.com/storage/docs/gsutil.
 
 ## 3) Running the Spark shell
 The easiest way to run your Spark applications is using the Spark shell, a REPL that lets you interactively compose your application. To start the Spark shell, do the following:
@@ -86,14 +137,16 @@ You can replace the “4” with any number. To use as many threads as are avail
 spark-submit --master ’local[*]’ path/to/myapp.py path/to/file
 ```
 
-## 5) WordCount in Spark (30 Points)
+## 5) Word Count in Spark (30 Points)
 The typical "Hello, world!" app for Spark applications is known as word count. The map/reduce model is particularly well suited to applications like counting words in a document.
 
 All operations in Spark operate on data structures called RDDs, Resilient Distributed Datasets. An RDD is nothing more than a collection of objects. If you read a file into an RDD, each line will become an object (a string, actually) in the collection that is the RDD. If you ask Spark to count the number of elements in the RDD, it will tell you how many lines are in the file. If an RDD contains only two-element tuples, the RDD is known as a "pair RDD" and offers some additional functionality. The first element of each tuple is treated as a key, and the second element as a value. Note that all RDDs are immutable, and any operations that would mutate an RDD will instead create a new RDD.
 
 We have provided starter code in `word_count.py` that loads the input file into a RDD. You are responsible for writing the rest of the application. Your application must return a list of the 10 most frequently occurring words, sorted in descending order of count.
 
-We have provided a local dataset called `pg100.txt` to experiment with; for distributed runs, we will provide a larger dataset available on Google Cloud Storage.
+You can use `re.split()` function with the regex `[^\w]+` to split the input text into words.
+
+We have provided a local dataset called `pg100.txt` to experiment with; for distributed runs, we provide a large dataset at `gs://cs149-asst5/word_count/wiki`.
 
 Here is an example of how to run the code:
 
@@ -146,6 +199,20 @@ For `small.txt`, the correct output is,
 ```
 
 We expect you to use Spark for all operations on the data (including performing the matrix-vector multiply). You can use NumPy or regular python for computing dot products and other arithmetic, but any other data computation should leverage Spark.
+
+We have provided various input graphs to test your implementation at `gs://cs149-asst5/page_rank`, including the same graphs you used in Assignment 4 at `gs://cs149-asst5/page_rank/asst4_graphs`.
+
+## Grading
+
+Points in this assignment will solely be based on the correctness of your implementation on the provided input files, and the quality of your writeup,
+- 20 points: correctness of Word Count
+- 10 points: writeup for Word Count
+- 50 points: correctness of Page Rank
+- 20 points: writeup for Page Rank
+
+In your writeup, please describe at a high level your implementation strategy. For PageRank, also compare at a high level the single-worker performance of Spark compared to your assignment 4 submission for the same graphs. Note the differences you see (which implementation is faster), and outline some plausible reasons why these differences might exist.
+
+The graph available at `gs://cs149-asst5/page_rank/webgraph` is for a bonus 20 points. Please indicate in your writeup how you modified your PageRank implementation to account for this large a graph.
 
 ## Hand-in Instructions
 Please submit your work using Gradescope.
